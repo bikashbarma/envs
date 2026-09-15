@@ -83,7 +83,7 @@ body.light .resultActions button,body.light .adminTools button{background:#fff;c
 .adminHead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .adminTitle{margin:0;font-weight:1000}
 .tableWrap{overflow:auto;margin-top:16px}
-table{width:100%;border-collapse:collapse;min-width:900px}
+table{width:100%;border-collapse:collapse;min-width:620px}
 th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{color:var(--muted);font-size:12px}
 .empty{padding:30px;text-align:center;color:var(--muted);font-weight:800}
@@ -185,7 +185,7 @@ th{color:var(--muted);font-size:12px}
   <div class="leftbox"><button id="themeBtn" class="themeBtn" type="button">☀ THEME</button></div>
   <div class="centerbox">
     <button id="correctBtn" class="correctBtn" type="button">CORRECT: 0</button>
-    <div id="timer" class="timer">40:00</div>
+    <div id="timer" class="timer">60:00</div>
   </div>
   <div class="rightbox"><button id="adminBtn" class="adminBtn" type="button">ADMIN PORTAL</button></div>
 </header>
@@ -213,10 +213,10 @@ th{color:var(--muted);font-size:12px}
     <div class="adminHead">
       <div><h2 class="adminTitle">ADMIN DASHBOARD</h2></div>
       <div class="adminTools">
-        <button id="refreshAdmin">REFRESH RESULTS</button>
-        <button id="csvAdmin">DOWNLOAD RESULTS CSV</button>
+        <button id="centralUnlock">🔓 UNLOCK EXAM</button>
+        <button id="centralLock" class="danger">🔒 LOCK EXAM</button>
+        <button id="refreshAdmin">REFRESH CENTRAL RESULTS</button>
         <button id="printAdmin">PRINT / SAVE PDF REPORT</button>
-        <button id="clearAdmin" class="danger">CLEAR ALL RESULTS</button>
       </div>
     </div>
     <div id="adminTable"></div>
@@ -229,11 +229,12 @@ const DURATION=60*60;
 const ADMIN_PASSWORD="Bikash@420";
 const RESULTS_KEY="narration_voice_105_mock_v1";
 const CENTRAL_SCOREBOARD_URL="https://script.google.com/macros/s/AKfycbxtViNBEpH1yW6Bjgg-rDuQP1O94bLjbEC7gAyWE-3D8jdc0ZcatanG7g_WzfsRWPCo/exec";
-const CENTRAL_API_TOKEN="CTET_SCOREBOARD_2026_BIKAS_420";
+const CENTRAL_API_TOKEN="BA2026_23c323865fbe3be18692a81ab19510e824c0a778";
 const TEST_ID="NARRATION-VOICE-105";
 
 let candidate="",idx=0,answers={},startAt=0,timerHandle=null,submitted=false,warningGiven=false;
 let revisionMode=false,revisionQuestions=[],revisionAnswers={},revisionStartAt=0,revisionTimerHandle=null,revisionSubmitted=false,mainResult=null;
+let centralStatus="LOCKED",centralUnlockedAt=0,centralPollHandle=null,viewingMode=false,centralExamStarted=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const letter=i=>String.fromCharCode(65+i);
@@ -245,13 +246,14 @@ function saveResults(a){localStorage.setItem(RESULTS_KEY,JSON.stringify(a))}
 function submitToCentralScoreboard(r){
   const status=$("centralStatus");
   const payload={
+    action:"saveresult",
     token:CENTRAL_API_TOKEN,
     testId:TEST_ID,
+    mode:"MAIN",
     candidateName:String(r.candidate||"").trim(),
-    candidate:String(r.candidate||"").trim(),
     score:Number(r.score)||0,
     percentage:Number(r.percentage)||0,
-    timeUsed:Number(r.timeUsed)||0,
+    timeUsed:formatTime(r.timeUsed),
     correct:Number(r.correct)||0,
     incorrect:Number(r.incorrect)||0,
     attempted:Number(r.attempted)||0,
@@ -259,49 +261,111 @@ function submitToCentralScoreboard(r){
     submissionId:String(r.id||""),
     date:r.completedAt
   };
-  const body=JSON.stringify(payload);
+
   if(status){
     status.textContent="CENTRAL SCOREBOARD: SENDING RESULT…";
     status.style.color="var(--green)";
   }
 
-  let sent=false;
-  try{
-    if(navigator.sendBeacon){
-      sent=navigator.sendBeacon(
-        CENTRAL_SCOREBOARD_URL,
-        new Blob([body],{type:"text/plain;charset=UTF-8"})
-      );
-    }
-  }catch(e){ sent=false; }
+  const u=new URL(CENTRAL_SCOREBOARD_URL);
+  Object.keys(payload).forEach(k=>u.searchParams.set(k,String(payload[k])));
 
-  if(sent){
-    if(status){
-      status.textContent="CENTRAL SCOREBOARD: SUBMISSION QUEUED";
-      status.style.color="var(--green)";
-    }
-    return Promise.resolve();
-  }
-
-  return fetch(CENTRAL_SCOREBOARD_URL,{
-    method:"POST",
-    mode:"no-cors",
-    redirect:"follow",
+  return fetch(u.toString(),{
+    method:"GET",
     credentials:"omit",
-    headers:{"Content-Type":"text/plain;charset=UTF-8"},
-    body:body,
-    keepalive:true
-  }).then(()=>{
+    cache:"no-store"
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok)throw new Error(d.error||"Central submission failed");
     if(status){
-      status.textContent="CENTRAL SCOREBOARD: SUBMISSION SENT";
+      status.textContent="CENTRAL SCOREBOARD: SUBMITTED ✓";
       status.style.color="var(--green)";
     }
-  }).catch(()=>{
+    return d;
+  })
+  .catch(()=>{
     if(status){
-      status.textContent="CENTRAL SCOREBOARD: CONNECTION FAILED";
+      status.textContent="CENTRAL SCOREBOARD: SUBMISSION FAILED";
       status.style.color="var(--red)";
     }
   });
+}
+
+function getCentralStatus(){
+  const u=new URL(CENTRAL_SCOREBOARD_URL);
+  u.searchParams.set("action","status");
+  u.searchParams.set("token",CENTRAL_API_TOKEN);
+  u.searchParams.set("testId",TEST_ID);
+  u.searchParams.set("_",Date.now());
+
+  return fetch(u.toString(),{
+    method:"GET",
+    credentials:"omit",
+    cache:"no-store"
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok)throw new Error(d.error||"Central status error");
+    centralStatus=String(d.status||"LOCKED").toUpperCase();
+    centralUnlockedAt=d.unlockedAt?new Date(d.unlockedAt).getTime():0;
+    return d;
+  });
+}
+
+function startCentralPolling(){
+  clearInterval(centralPollHandle);
+  const poll=()=>{
+    getCentralStatus().then(d=>{
+      if(revisionMode)return;
+
+      const unlocked=
+        String(d.status||"LOCKED").toUpperCase()==="UNLOCKED";
+
+      if(unlocked){
+        if(!centralExamStarted){
+          centralExamStarted=true;
+          viewingMode=false;
+
+          const serverStart=
+            d.unlockedAt
+              ? new Date(d.unlockedAt).getTime()
+              : Date.now();
+
+          startAt=serverStart;
+
+          const elapsed=
+            Math.floor((Date.now()-startAt)/1000);
+
+          if(elapsed>=DURATION){
+            $("timer").textContent="00:00";
+            if(!submitted)submitExam();
+            return;
+          }
+
+          $("timer").classList.remove("warn");
+          if(!timerHandle){
+            timerHandle=setInterval(tick,250);
+          }
+          tick();
+          render();
+        }
+      }else{
+        if(!submitted){
+          viewingMode=true;
+          centralExamStarted=false;
+          clearInterval(timerHandle);
+          timerHandle=null;
+          $("timer").textContent="00:00";
+          $("timer").classList.remove("warn");
+          render();
+        }
+      }
+    }).catch(()=>{});
+  };
+
+  poll();
+  centralPollHandle=setInterval(poll,3000);
 }
 
 let audioCtx=null;
@@ -363,36 +427,96 @@ function formatTime(sec){sec=Math.max(0,Math.floor(sec));return String(Math.floo
 
 function sectionFor(q){ return q.kind==="Narration" ? "NARRATION / DIRECT & INDIRECT SPEECH" : "VOICE CHANGE / ACTIVE & PASSIVE"; }
 
-function render(){if(revisionMode){$("revisionBanner")?.classList.add("show");$("timer").textContent="00:00";}else{$("revisionBanner")?.classList.remove("show");}
+function render(){
+  if(revisionMode){
+    $("revisionBanner")?.classList.add("show");
+    $("timer").textContent="00:00";
+  }else{
+    $("revisionBanner")?.classList.remove("show");
+  }
+
   const list=revisionMode?revisionQuestions:QUESTIONS;
-  const q=list[idx],a=(revisionMode?revisionAnswers:answers)[q.id]||"";
-  $("progress").textContent=`Question ${idx+1} of ${list.length}${revisionMode?" · REVISION TEST":""}`;
-  $("sectionLabel").textContent=sectionFor(q);
+  const q=list[idx];
+  if(!q)return;
+
+  const a=(revisionMode?revisionAnswers:answers)[q.id]||"";
+
+  $("progress").textContent=
+    `Question ${idx+1} of ${list.length}${revisionMode?" · REVISION TEST":""}`;
+
+  $("sectionLabel").textContent=
+    sectionFor(q);
+
   const ok=a===q.answer;
-  // Correct answer: no explanation is shown. Wrong answer: only the Bengali explanation is shown.
-  const fb=(a && !ok)?`<div class="explain"><div class="wrong-title">ভুল হয়েছে</div><div>${esc(q.explanation)}</div></div>`:"";
-  const btnClass=a?(ok?"answer-correct":"answer-wrong"):"";
+
+  const fb=(a && !ok)
+    ?`<div class="explain"><div class="wrong-title">ভুল হয়েছে</div><div>${esc(q.explanation)}</div></div>`
+    :"";
+
+  const btnClass=
+    a?(ok?"answer-correct":"answer-wrong")
+      :"";
+
+  const lockedView=
+    !revisionMode && viewingMode && !centralExamStarted;
+
   $("qcard").innerHTML=`
     <div class="qnum">Q${q.id} · ${q.kind.toUpperCase()}</div>
     <div class="question">${esc(q.text)}</div>
+    ${lockedView?`<div style="margin-top:8px;color:var(--gold);font-weight:900;text-align:center">🔒 QUESTION VIEWING MODE — OPTIONS DISABLED</div>`:""}
     <div class="options">${q.options.map((o,i)=>{
       const L=letter(i);
       let cls="opt";
       if(a===L)cls+=" selected";
-      if(a){if(q.answer===L)cls+=" correct";else if(a===L)cls+=" wrong"}
-      return `<button type="button" class="${cls}" data-opt="${L}" ${a?"disabled":""}>
+      if(a){
+        if(q.answer===L)cls+=" correct";
+        else if(a===L)cls+=" wrong";
+      }
+      return `<button type="button" class="${cls}" data-opt="${L}" ${(a||lockedView)?"disabled":""}>
         <span class="letter">${L}.</span><span>${esc(o)}</span></button>`;
     }).join("")}</div>
     <div class="feedback ${a?(ok?"ok":"bad"):""}">${fb}</div>
-    <div class="actions"><button id="nextBtn" class="next ${btnClass}" type="button" ${a?"":"disabled"}>${idx===list.length-1?"FINISH":"CONTINUE"}</button></div>`;
-  $("qcard").querySelectorAll("[data-opt]").forEach(el=>el.onclick=()=>choose(el.dataset.opt));
+    <div class="actions">
+      <button id="nextBtn" class="next ${btnClass}" type="button"
+        ${(!a && !lockedView)?"disabled":""}>
+        ${idx===list.length-1?"FINISH":"CONTINUE"}
+      </button>
+    </div>`;
+
+  $("qcard").querySelectorAll("[data-opt]")
+    .forEach(el=>el.onclick=()=>choose(el.dataset.opt));
+
   const nextBtn=$("nextBtn");
-  nextBtn.onclick=()=>{if(navigator.vibrate)try{navigator.vibrate([70,35,70,35,110])}catch(e){};nextBtn.classList.remove("tap-vibrate");void nextBtn.offsetWidth;nextBtn.classList.add("tap-vibrate");if(idx<list.length-1){idx++;render()}else revisionMode?finishRevision():submitExam()};
+
+  nextBtn.onclick=()=>{
+    if(navigator.vibrate)
+      try{navigator.vibrate([70,35,70,35,110])}catch(e){}
+
+    nextBtn.classList.remove("tap-vibrate");
+    void nextBtn.offsetWidth;
+    nextBtn.classList.add("tap-vibrate");
+
+    if(idx<list.length-1){
+      idx++;
+      render();
+    }else{
+      if(revisionMode)finishRevision();
+      else if(!viewingMode)submitExam();
+    }
+  };
+
   if(a){
-    // Force the vibration animation after the button is rendered.
-    if(!ok){requestAnimationFrame(()=>{nextBtn.classList.remove("answer-wrong");void nextBtn.offsetWidth;nextBtn.classList.add("answer-wrong");});}
+    if(!ok){
+      requestAnimationFrame(()=>{
+        nextBtn.classList.remove("answer-wrong");
+        void nextBtn.offsetWidth;
+        nextBtn.classList.add("answer-wrong");
+      });
+    }
   }
-  $("correctBtn").textContent=`CORRECT: ${countCorrectLive()}`;
+
+  $("correctBtn").textContent=
+    `CORRECT: ${countCorrectLive()}`;
 }
 
 function countCorrectLive(){let n=0;QUESTIONS.forEach(q=>{if(answers[q.id]===q.answer)n++});return n}
@@ -404,50 +528,170 @@ function choose(L){
 
 function startExam(){
   const n=$("candidate").value.trim();
-  if(!n){$("candidate").focus();return}
+  if(!n){
+    $("candidate").focus();
+    return;
+  }
+
   ensureAudio();
-  candidate=n;idx=0;answers={};submitted=false;warningGiven=false;startAt=Date.now();
-  $("start").classList.add("hidden");$("result").classList.add("hidden");$("admin").classList.add("hidden");$("exam").classList.remove("hidden");
-  render();timerHandle=setInterval(tick,250);tick();
+
+  candidate=n;
+  idx=0;
+  answers={};
+  submitted=false;
+  warningGiven=false;
+  mainResult=null;
+  revisionMode=false;
+  revisionQuestions=[];
+  revisionAnswers={};
+  viewingMode=false;
+  centralExamStarted=false;
+  startAt=0;
+
+  $("start").classList.add("hidden");
+  $("result").classList.add("hidden");
+  $("admin").classList.add("hidden");
+  $("exam").classList.remove("hidden");
+  $("timer").textContent="00:00";
+
+  getCentralStatus()
+    .then(d=>{
+      const unlocked=
+        String(d.status||"LOCKED").toUpperCase()==="UNLOCKED";
+
+      if(unlocked){
+        viewingMode=false;
+        centralExamStarted=true;
+
+        startAt=
+          d.unlockedAt
+            ? new Date(d.unlockedAt).getTime()
+            : Date.now();
+
+        const elapsed=
+          Math.floor((Date.now()-startAt)/1000);
+
+        if(elapsed>=DURATION){
+          $("timer").textContent="00:00";
+          submitExam();
+          return;
+        }
+
+        clearInterval(timerHandle);
+        timerHandle=setInterval(tick,250);
+        tick();
+        render();
+      }else{
+        viewingMode=true;
+        centralExamStarted=false;
+        clearInterval(timerHandle);
+        timerHandle=null;
+        $("timer").textContent="00:00";
+        render();
+      }
+
+      startCentralPolling();
+    })
+    .catch(()=>{
+      alert("Central exam server-এর সঙ্গে সংযোগ হচ্ছে না।");
+      $("exam").classList.add("hidden");
+      $("start").classList.remove("hidden");
+    });
 }
 
 function tick(){
-  const used=Math.floor((Date.now()-startAt)/1000),left=DURATION-used;
-  $("timer").textContent=formatTime(Math.max(0,left));
-  const lastTen=left<=600 && left>0;
+  if(revisionMode || viewingMode || !centralExamStarted){
+    $("timer").textContent="00:00";
+    $("timer").classList.remove("warn","real-exam-last10");
+    return;
+  }
+
+  const used=
+    Math.floor((Date.now()-startAt)/1000);
+
+  const left=
+    DURATION-used;
+
+  $("timer").textContent=
+    formatTime(Math.max(0,left));
+
+  const lastTen=
+    left<=600 && left>0;
+
   $("timer").classList.toggle("warn",lastTen);
+  $("timer").classList.toggle("real-exam-last10",lastTen);
+
   if(lastTen && !warningGiven){
     warningGiven=true;
+
     try{
       const c=ensureAudio();
+
       if(c){
         const playWarningTone=(delay)=>{
           setTimeout(()=>{
             try{
-              const o=c.createOscillator(),g=c.createGain();
+              const o=c.createOscillator(),
+                    g=c.createGain();
+
               o.type="square";
-              o.frequency.setValueAtTime(880,c.currentTime);
-              o.frequency.exponentialRampToValueAtTime(660,c.currentTime+0.22);
-              g.gain.setValueAtTime(0.0001,c.currentTime);
-              g.gain.exponentialRampToValueAtTime(0.28,c.currentTime+0.015);
-              g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.28);
-              o.connect(g);g.connect(c.destination);
-              o.start();o.stop(c.currentTime+0.3);
+
+              o.frequency.setValueAtTime(
+                880,
+                c.currentTime
+              );
+
+              o.frequency.exponentialRampToValueAtTime(
+                660,
+                c.currentTime+0.22
+              );
+
+              g.gain.setValueAtTime(
+                0.0001,
+                c.currentTime
+              );
+
+              g.gain.exponentialRampToValueAtTime(
+                0.28,
+                c.currentTime+0.015
+              );
+
+              g.gain.exponentialRampToValueAtTime(
+                0.0001,
+                c.currentTime+0.28
+              );
+
+              o.connect(g);
+              g.connect(c.destination);
+
+              o.start();
+              o.stop(c.currentTime+0.3);
+
             }catch(e){}
           },delay);
         };
+
         playWarningTone(0);
         playWarningTone(360);
         playWarningTone(720);
       }
+
     }catch(e){}
-    setTimeout(()=>{if(!submitted) alert("⚠️ সতর্কবার্তা: পরীক্ষার শেষ ১০ মিনিট শুরু হয়েছে।");},50);
+
+    setTimeout(()=>{
+      if(!submitted)
+        alert(
+          "⚠️ সতর্কবার্তা: পরীক্ষার শেষ ১০ মিনিট শুরু হয়েছে।"
+        );
+    },50);
   }
-  if(left<=0 && !submitted)submitExam();
+
+  if(left<=0 && !submitted)
+    submitExam();
 }
 
 function submitExam(){
-  if(submitted)return;submitted=true;clearInterval(timerHandle);
+  if(submitted || revisionMode || viewingMode || !centralExamStarted)return;submitted=true;clearInterval(timerHandle);
   const used=Math.min(DURATION,Math.floor((Date.now()-startAt)/1000));
   let correct=0,attempted=0;
   QUESTIONS.forEach(q=>{if(answers[q.id]){attempted++;if(answers[q.id]===q.answer)correct++}});
@@ -515,34 +759,153 @@ function finishRevision(){
 
 function adminLogin(){
   const p=prompt("Admin Password");
-  if(p!==ADMIN_PASSWORD){alert("Incorrect password.");return}
-  $("start").classList.add("hidden");$("exam").classList.add("hidden");$("result").classList.add("hidden");$("admin").classList.remove("hidden");
-  $("timer").textContent="60:00";$("correctBtn").textContent="CORRECT: 0";renderAdmin();
+
+  if(p!==ADMIN_PASSWORD){
+    alert("Incorrect password.");
+    return;
+  }
+
+  $("start").classList.add("hidden");
+  $("exam").classList.add("hidden");
+  $("result").classList.add("hidden");
+  $("admin").classList.remove("hidden");
+
+  $("timer").textContent="60:00";
+  $("correctBtn").textContent="CORRECT: 0";
+
+  renderAdmin();
 }
 
-function rankResults(rs){
-  return rs.slice().sort((a,b)=>b.score-a.score||a.timeUsed-b.timeUsed||new Date(a.completedAt)-new Date(b.completedAt));
+function centralAdminRequest(action){
+  const p=prompt("Admin Password");
+
+  if(p!==ADMIN_PASSWORD){
+    alert("Incorrect password.");
+    return;
+  }
+
+  const u=new URL(CENTRAL_SCOREBOARD_URL);
+
+  u.searchParams.set("action",action);
+  u.searchParams.set("token",CENTRAL_API_TOKEN);
+  u.searchParams.set("testId",TEST_ID);
+  u.searchParams.set("password",p);
+  u.searchParams.set("_",Date.now());
+
+  return fetch(u.toString(),{
+    method:"GET",
+    credentials:"omit",
+    cache:"no-store"
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok)throw new Error(d.error||"Server error");
+
+    alert(
+      action==="unlock"
+        ? "🔓 EXAM UNLOCKED — সকল পরীক্ষার্থীর জন্য পরীক্ষা চালু হয়েছে।"
+        : "🔒 EXAM LOCKED — সকল পরীক্ষার্থীর জন্য Question Viewing Mode চালু হয়েছে।"
+    );
+
+    renderAdmin();
+    return d;
+  })
+  .catch(e=>{
+    alert(
+      "Central server error: "+
+      (e.message||e)
+    );
+  });
+}
+
+function loadCentralAdmin(){
+  const p=prompt("Admin Password");
+
+  if(p!==ADMIN_PASSWORD){
+    alert("Incorrect password.");
+    return;
+  }
+
+  const u=new URL(CENTRAL_SCOREBOARD_URL);
+
+  u.searchParams.set("action","results");
+  u.searchParams.set("token",CENTRAL_API_TOKEN);
+  u.searchParams.set("testId",TEST_ID);
+  u.searchParams.set("password",p);
+  u.searchParams.set("_",Date.now());
+
+  return fetch(u.toString(),{
+    method:"GET",
+    credentials:"omit",
+    cache:"no-store"
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(!d.ok)throw new Error(d.error||"Server error");
+
+    const wrap=$("adminTable");
+
+    const st=d.status||{};
+    const locked=
+      String(st.status||"LOCKED").toUpperCase()
+      ==="LOCKED";
+
+    let html=
+      `<div class="status" style="color:${locked?"var(--red)":"var(--green)"}">
+        ${locked?"🔒 CENTRAL STATUS: LOCKED":"🔓 CENTRAL STATUS: UNLOCKED"}
+      </div>`;
+
+    if(!d.results || !d.results.length){
+      html+=
+        '<div class="empty">No candidate has submitted the exam yet.</div>';
+      wrap.innerHTML=html;
+      return d;
+    }
+
+    html+=`<div class="tableWrap"><table>
+      <thead><tr>
+      <th>Date</th>
+      <th>Candidate Name</th>
+      <th>Score</th>
+      <th>Time Used</th>
+      <th>Percentage</th>
+      </tr></thead>
+      <tbody>`;
+
+    d.results.forEach(r=>{
+      const date=
+        r.date
+          ? new Date(r.date).toLocaleString()
+          : "";
+
+      html+=`<tr>
+        <td>${esc(date)}</td>
+        <td><b>${esc(r.candidateName)}</b></td>
+        <td>${esc(r.score)}</td>
+        <td>${esc(r.timeUsed)}</td>
+        <td>${esc(r.percentage)}%</td>
+      </tr>`;
+    });
+
+    html+=
+      "</tbody></table></div>";
+
+    wrap.innerHTML=html;
+
+    return d;
+  })
+  .catch(e=>{
+    $("adminTable").innerHTML=
+      `<div class="empty">Central server error: ${esc(e.message||e)}</div>`;
+  });
 }
 
 function renderAdmin(){
-  const rs=rankResults(getResults()),wrap=$("adminTable");
-  if(!rs.length){wrap.innerHTML='<div class="empty">No saved candidate results.</div>';return}
-  wrap.innerHTML=`<div class="tableWrap"><table><thead><tr>
-    <th>Rank</th><th>Candidate Name</th><th>Score</th><th>Percentage</th><th>Correct</th><th>Incorrect</th><th>Attempted</th><th>Unanswered</th><th>Time Used</th><th>Completed Date/Time</th>
-  </tr></thead><tbody>${rs.map((r,i)=>{
-    const d=new Date(r.completedAt);
-    return `<tr><td>${i+1}</td><td>${esc(r.candidate)}</td><td>${r.score}</td><td>${r.percentage.toFixed(2)}%</td><td>${r.correct}</td><td>${r.incorrect}</td><td>${r.attempted}</td><td>${r.unanswered}</td><td>${formatTime(r.timeUsed)}</td><td>${d.toLocaleString()}</td></tr>`;
-  }).join("")}</tbody></table></div>`;
+  loadCentralAdmin();
 }
 
 function downloadCSV(){
-  const rs=rankResults(getResults());
-  const head=["Rank","Candidate Name","Score","Time used","Percentage","Completed Date/Time"];
-  const lines=[head,...rs.map((r,i)=>[i+1,r.candidate,r.score,formatTime(r.timeUsed),r.percentage.toFixed(2)+"%",new Date(r.completedAt).toLocaleString()])];
-  const txt="\uFEFF"+lines.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\r\n");
-  const blob=new Blob([txt],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="CTET_Set4_Results.csv";a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  alert("CSV download এখন Central Google Sheet থেকেই করা যাবে।");
 }
 
 function toggleTheme(){
@@ -560,11 +923,10 @@ $("candidate").addEventListener("keydown",e=>{if(e.key==="Enter")startExam()});
 $("themeBtn").onclick=toggleTheme;
 $("adminBtn").onclick=adminLogin;
 $("refreshAdmin").onclick=renderAdmin;
-$("csvAdmin").onclick=downloadCSV;
+$("centralUnlock").onclick=()=>centralAdminRequest("unlock");
+$("centralLock").onclick=()=>centralAdminRequest("lock");
+$("csvAdmin")?.remove();
 $("printAdmin").onclick=()=>window.print();
-$("clearAdmin").onclick=()=>{
-  if(confirm("Are you sure you want to delete all candidate results?")){localStorage.removeItem(RESULTS_KEY);renderAdmin()}
-};
 loadTheme();
 </script>
 <script id="REAL_EXAM_LAST10_TIMER_ONLY_SCRIPT">
