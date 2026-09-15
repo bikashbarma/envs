@@ -141,6 +141,21 @@ th{color:var(--muted);font-size:12px}
   50%,100%{opacity:0;visibility:hidden}
 }
 </style>
+<style id="REAL_EXAM_LAST10_TIMER_ONLY">
+#timer.real-exam-last10{
+  color:#ff0000 !important;
+  background:transparent !important;
+  background-color:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+  animation:realExamLast10Blink 1.8s ease-in-out infinite !important;
+}
+@keyframes realExamLast10Blink{
+  0%,100%{opacity:1}
+  50%{opacity:.45}
+}
+</style>
 </head>
 <body>
 <audio id="bgMusic" preload="auto" loop playsinline>
@@ -529,6 +544,32 @@ $("clearAdmin").onclick=()=>{
   if(confirm("Are you sure you want to delete all candidate results?")){localStorage.removeItem(RESULTS_KEY);renderAdmin()}
 };
 loadTheme();
+</script>
+<script id="REAL_EXAM_LAST10_TIMER_ONLY_SCRIPT">
+(function(){
+  function update(){
+    var t=document.getElementById('timer');
+    if(!t)return;
+    if(typeof revisionMode!=='undefined' && revisionMode){
+      t.classList.remove('real-exam-last10');
+      return;
+    }
+    var s=(t.textContent||'').trim();
+    var m=s.match(/^(\d{1,2}):(\d{2})$/);
+    if(!m){
+      t.classList.remove('real-exam-last10');
+      return;
+    }
+    var seconds=parseInt(m[1],10)*60+parseInt(m[2],10);
+    if(seconds>0 && seconds<=600){
+      t.classList.add('real-exam-last10');
+    }else{
+      t.classList.remove('real-exam-last10');
+    }
+  }
+  setInterval(update,100);
+  document.addEventListener('DOMContentLoaded',update);
+})();
 </script>
 </body>
 </html>
