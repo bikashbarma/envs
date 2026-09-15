@@ -120,12 +120,27 @@ th{color:var(--muted);font-size:12px}
 }
 </style>
 
-<style id="revision-banner-style">#revisionBanner{display:none;margin:10px 0 14px;text-align:center;font-size:clamp(24px,5vw,38px);font-weight:1000;letter-spacing:.12em;color:#00e83f;text-shadow:0 0 6px #00e83f,0 0 14px #00e83f,0 0 28px rgba(0,255,70,.8);animation:revisionTextBlink .65s steps(2,start) infinite}
+<style id="revision-banner-style">#revisionBanner{display:none;text-align:center;font-weight:800;font-size:22px;line-height:1.4;margin:12px 0;padding:0;background:none;border:none;box-shadow:none;}
 #revisionBanner.show{display:block}
-.revisionStar{display:inline-block;color:#ff2020;text-shadow:0 0 6px #ff2020,0 0 14px #ff2020,0 0 28px rgba(255,0,0,.85);animation:revisionStarBlink .65s steps(2,start) infinite}
-.revisionText{color:#00e83f;animation:revisionTextBlink .65s steps(2,start) infinite}
+.revisionStar{color:red;font-weight:800;animation:revisionBlink 1s step-end infinite;text-shadow:none;background:none;}
+.revisionText{color:#16a34a;font-weight:800;animation:revisionBlink 1s step-end infinite;text-shadow:none;background:none;}
 @keyframes revisionTextBlink{0%,100%{opacity:1;filter:brightness(1.1)}50%{opacity:.22;filter:brightness(2.4)}}
 @keyframes revisionStarBlink{0%,100%{opacity:1;filter:brightness(1.1)}50%{opacity:.18;filter:brightness(2.5)}}</style>
+<style id="revisionTextFix">
+.revisionText{
+  color:#ff0000 !important;
+  font-weight:900 !important;
+  font-size:1.12em !important;
+  text-shadow:none !important;
+  background:none !important;
+  border:none !important;
+  animation:revisionTextBlink 0.8s steps(1,end) infinite !important;
+}
+@keyframes revisionTextBlink{
+  0%,49%{opacity:1;visibility:visible}
+  50%,100%{opacity:0;visibility:hidden}
+}
+</style>
 </head>
 <body>
 <audio id="bgMusic" preload="auto" loop playsinline>
@@ -172,7 +187,7 @@ th{color:var(--muted);font-size:12px}
 <section id="exam" class="exam hidden">
   <div class="examInner">
     <div class="progress"><span id="progress"></span><span id="sectionLabel"></span></div>
-    <div id="revisionBanner"><span class="revisionStar">★</span> <span class="revisionText">REVISION TEST</span> <span class="revisionStar">★</span></div><div id="qcard" class="qcard"></div>
+    <div id="revisionBanner"><span class="revisionStar">★</span> <span class="revisionText">যেগুলি ভুল করলাম</span> <span class="revisionStar">★</span></div><div id="qcard" class="qcard"></div>
   </div>
 </section>
 
