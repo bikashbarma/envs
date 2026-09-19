@@ -52,7 +52,7 @@ body.light .name{background:#f8f9fc;color:#111;border-color:#cfd4de}
 .timer.warn{color:#fff;background:linear-gradient(135deg,#ff1744,#ff6b00,#ffd400,#ff1744);background-size:300% 300%;padding:6px 14px;border-radius:14px;font-size:clamp(22px,4vw,34px);line-height:1;box-shadow:0 0 10px #ff1744,0 0 24px #ff6b00,0 0 42px rgba(255,212,0,.8);text-shadow:0 0 7px #fff,0 0 16px #ff1744;animation:timerGlow 1.15s ease-in-out infinite,timerGradient 2s linear infinite;transform:scale(1.12)}
 @keyframes timerGlow{0%,100%{opacity:1;transform:scale(1.12)}50%{opacity:.55;transform:scale(1.22)}}
 @keyframes timerGradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-.unlockBtn{border:1px solid var(--gold);border-radius:11px;padding:10px 14px;background:transparent;color:var(--gold);font-weight:1000;margin-right:auto}.unlockBtn:active{transform:scale(.97)}
+
 .actions{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;flex-shrink:0;background:var(--panel)}
 .next{width:min(240px,100%);height:54px;border:2px solid #fff;border-radius:14px;background:#fff;color:#000;font-weight:1000;font-size:18px;transition:.12s;flex-shrink:0}.next.answer-correct{background:var(--green);border-color:var(--green);color:#001b0a}.next.answer-wrong{background:var(--red);border-color:var(--red);color:#fff;animation:shake .45s ease-in-out 0s 2}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
 .next:disabled{opacity:.35;cursor:not-allowed}
@@ -572,10 +572,8 @@ function render(){if(revisionMode){$("revisionBanner")?.classList.add("show");$(
         <span class="letter">${L}.</span><span>${esc(o)}</span></button>`;
     }).join("")}</div>
     <div class="feedback ${a?(ok?"ok":"bad"):""}">${fb}</div>
-    <div class="actions">${a?`<button id="unlockBtn" class="unlockBtn" type="button">🔓 UNLOCK ANSWER</button>`:""}<button id="nextBtn" class="next ${btnClass}" type="button" ${a?"":"disabled"}>${idx===list.length-1?"FINISH":"CONTINUE"}</button></div>`;
+    <div class="actions"><button id="nextBtn" class="next ${btnClass}" type="button" ${a?"":"disabled"}>${idx===list.length-1?"FINISH":"CONTINUE"}</button></div>`;
   $("qcard").querySelectorAll("[data-opt]").forEach(el=>el.onclick=()=>choose(el.dataset.opt));
-  const unlockBtn=$("unlockBtn");
-  if(unlockBtn){unlockBtn.onclick=()=>unlockAnswer();}
   const nextBtn=$("nextBtn");
   // Strong haptic feedback on the REAL EXAM CONTINUE button.
   // Trigger vibration directly from the user's touch/pointer event so mobile browsers
@@ -597,18 +595,6 @@ function render(){if(revisionMode){$("revisionBanner")?.classList.add("show");$(
 }
 
 function countCorrectLive(){let n=0;QUESTIONS.forEach(q=>{if(answers[q.id]===q.answer)n++});return n}
-
-function unlockAnswer(){
-  if(submitted)return;
-  if(revisionMode){
-    if(revisionSubmitted)return;
-    const q=revisionQuestions[idx];
-    if(revisionAnswers[q.id]){delete revisionAnswers[q.id];render();}
-    return;
-  }
-  const q=QUESTIONS[idx];
-  if(answers[q.id]){delete answers[q.id];render();}
-}
 
 function choose(L){
   if(revisionMode){if(revisionSubmitted)return;const q=revisionQuestions[idx];if(revisionAnswers[q.id])return;revisionAnswers[q.id]=L;const ok=L===q.answer;beep(ok);fireworks(ok);render();return;}
