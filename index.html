@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#000000">
-<title>Health, Hygiene &amp; Sanitation Master Mock Test — 40 Questions | Central Scoreboard</title>
+<title>Environmental Studies — Health, Hygiene &amp; Sanitation Master Mock Test — 40 Questions | Central Scoreboard</title>
 <style>
 :root{--bg:#000;--panel:#090909;--panel2:#111;--line:#292929;--text:#fff;--muted:#aaa;--green:#18e76b;--red:#ff3152;--gold:#ffd45a;--blue:#5f8cff}
 *{box-sizing:border-box}
@@ -52,7 +52,6 @@ body.light .name{background:#f8f9fc;color:#111;border-color:#cfd4de}
 .timer.warn{color:#fff;background:linear-gradient(135deg,#ff1744,#ff6b00,#ffd400,#ff1744);background-size:300% 300%;padding:6px 14px;border-radius:14px;font-size:clamp(22px,4vw,34px);line-height:1;box-shadow:0 0 10px #ff1744,0 0 24px #ff6b00,0 0 42px rgba(255,212,0,.8);text-shadow:0 0 7px #fff,0 0 16px #ff1744;animation:timerGlow 1.15s ease-in-out infinite,timerGradient 2s linear infinite;transform:scale(1.12)}
 @keyframes timerGlow{0%,100%{opacity:1;transform:scale(1.12)}50%{opacity:.55;transform:scale(1.22)}}
 @keyframes timerGradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-
 .actions{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;flex-shrink:0;background:var(--panel)}
 .next{width:min(240px,100%);height:54px;border:2px solid #fff;border-radius:14px;background:#fff;color:#000;font-weight:1000;font-size:18px;transition:.12s;flex-shrink:0}.next.answer-correct{background:var(--green);border-color:var(--green);color:#001b0a}.next.answer-wrong{background:var(--red);border-color:var(--red);color:#fff;animation:shake .45s ease-in-out 0s 2}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
 .next:disabled{opacity:.35;cursor:not-allowed}
@@ -162,6 +161,20 @@ body.light .viewModeExit{border-color:#111}
   .viewQuestion{padding:13px}
 }
 
+
+/* FIX: Keep CONTINUE permanently anchored at the bottom of the question card.
+   Long questions, options and Bengali explanations scroll inside the content area only. */
+.qcard{overflow:hidden}
+.qcard .qscroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.qcard .qscroll .question{max-width:none}
+.qcard .qscroll .options{margin-bottom:8px}
+.qcard .qscroll .feedback{max-height:none;overflow:visible;margin-bottom:8px}
+.qcard .qscroll .explain{max-height:none;overflow:visible}
+.qcard .actions{position:relative;z-index:3;margin-top:0;padding-top:10px;flex:0 0 auto;min-height:64px}
+@media(max-width:700px){
+  .qcard .qscroll{padding-right:2px}
+  .qcard .actions{min-height:62px}
+}
 </style>
 
 <style id="revision-banner-style">#revisionBanner{display:none;text-align:center;font-weight:800;font-size:22px;line-height:1.4;margin:12px 0;padding:0;background:none;border:none;box-shadow:none;}
@@ -276,7 +289,7 @@ body.light .viewModeExit{border-color:#111}
       <div class="lockRow">
         <div>
           <div style="font-weight:1000;font-size:18px">EXAM ACCESS CONTROL</div>
-          <div style="color:var(--muted);font-weight:700;margin-top:4px">LOCK/UNLOCK status সার্ভারে স্থায়ীভাবে সংরক্ষিত হবে। কোনো automatic expiry নেই।</div>
+          <div style="color:var(--muted);font-weight:700;margin-top:4px">LOCK/UNLOCK status সার্ভারে স্থায়ীভাবে সংরক্ষিত হবে। কোনো automatic expiry নেই এবং নতুন deployment-এও status নিজে থেকে বদলাবে না।</div>
         </div>
         <div id="lockStatusBadge" class="lockBadge">CHECKING…</div>
       </div>
@@ -296,7 +309,7 @@ let DURATION=30*60;
 const DEFAULT_DURATION_SECONDS=30*60;
 const ADMIN_PASSWORD="Bikash@420";
 const RESULTS_KEY="health_40_mock_v1";
-const CENTRAL_SCOREBOARD_URL="https://script.google.com/macros/s/AKfycbw7LmwtpQjR6OkI7AiZJ5XRW0vmwSqQ9WA-h5zUi6AQlf2k7LkgNVEMDdET5o9q1ZVg/exec";
+const CENTRAL_SCOREBOARD_URL="https://script.google.com/macros/s/AKfycbxmbDKNveQK46BYoCDN0Yu47SX_-jg0-bmXFsCJjwIUswyUvnnamuow93sfHIxJqz4yrQ/exec";
 const CENTRAL_API_TOKEN="CTET_SCOREBOARD_2026_BIKAS_420";
 const TEST_ID="HEALTH-40";
 const CENTRAL_ADMIN_CACHE_KEY="central_admin_cache_v1_"+TEST_ID;
@@ -562,8 +575,9 @@ function render(){if(revisionMode){$("revisionBanner")?.classList.add("show");$(
   const btnClass=a?(ok?"answer-correct":"answer-wrong"):"";
   $("qcard").innerHTML=`
     <div class="qnum">Q${q.id} · ${q.kind.toUpperCase()}</div>
-    <div class="question">${esc(q.text)}</div>
-    <div class="options">${q.options.map((o,i)=>{
+    <div class="qscroll">
+      <div class="question">${esc(q.text)}</div>
+      <div class="options">${q.options.map((o,i)=>{
       const L=letter(i);
       let cls="opt";
       if(a===L)cls+=" selected";
@@ -571,7 +585,8 @@ function render(){if(revisionMode){$("revisionBanner")?.classList.add("show");$(
       return `<button type="button" class="${cls}" data-opt="${L}" ${a?"disabled":""}>
         <span class="letter">${L}.</span><span>${esc(o)}</span></button>`;
     }).join("")}</div>
-    <div class="feedback ${a?(ok?"ok":"bad"):""}">${fb}</div>
+      <div class="feedback ${a?(ok?"ok":"bad"):""}">${fb}</div>
+    </div>
     <div class="actions"><button id="nextBtn" class="next ${btnClass}" type="button" ${a?"":"disabled"}>${idx===list.length-1?"FINISH":"CONTINUE"}</button></div>`;
   $("qcard").querySelectorAll("[data-opt]").forEach(el=>el.onclick=()=>choose(el.dataset.opt));
   const nextBtn=$("nextBtn");
@@ -799,8 +814,22 @@ function updateLockBadge(){
   b.className='lockBadge '+(examLocked?'locked':'unlocked');
   b.textContent=examLocked?'🔒 LOCKED':'🔓 UNLOCKED';
 }
+async function registerCurrentTest(){
+  const url=CENTRAL_SCOREBOARD_URL+
+    '?action=registerTest'+
+    '&testId='+encodeURIComponent(TEST_ID)+
+    '&name='+encodeURIComponent('Environmental Studies — Health, Hygiene & Sanitation — 40')+
+    '&totalQuestions='+encodeURIComponent(QUESTIONS.length)+
+    '&durationSeconds='+encodeURIComponent(DEFAULT_DURATION_SECONDS)+
+    '&token='+encodeURIComponent(CENTRAL_API_TOKEN)+
+    '&_='+Date.now();
+  const data=await fetchCentralJson(url,3);
+  if(!data || data.success===false || data.ok===false) throw new Error(data&&data.error||'Test registration failed');
+  return data;
+}
+
 function lockStatusURL(){
-  return CENTRAL_SCOREBOARD_URL+'?action=examLock&testId='+encodeURIComponent(TEST_ID)+'&_='+Date.now();
+  return CENTRAL_SCOREBOARD_URL+'?action=checkTest&testId='+encodeURIComponent(TEST_ID)+'&_='+Date.now();
 }
 async function fetchExamLock(){
   const data=await fetchCentralJson(lockStatusURL(),2);
@@ -808,8 +837,9 @@ async function fetchExamLock(){
   setLockUI(!!data.locked,data.notice||DEFAULT_LOCK_NOTICE);
   return !!data.locked;
 }
-function startLockPolling(){
+async function startLockPolling(){
   if(lockPollHandle)clearInterval(lockPollHandle);
+  try{ await registerCurrentTest(); }catch(e){}
   fetchExamLock().catch(()=>{});
   lockPollHandle=setInterval(()=>{
     if($('exam') && !$('exam').classList.contains('hidden')) return;
@@ -820,22 +850,70 @@ async function setExamLockState(locked){
   if(!adminPasswordSession){alert('Admin login required.');return;}
   const msg=$('lockControlMsg');
   if(msg)msg.textContent=locked?'Locking exam…':'Unlocking exam…';
-  const url=CENTRAL_SCOREBOARD_URL+
-    '?action=setExamLock&testId='+encodeURIComponent(adminTestId)+
-    '&locked='+(locked?'true':'false')+
-    '&password='+encodeURIComponent(adminPasswordSession)+
-    '&notice='+encodeURIComponent(DEFAULT_LOCK_NOTICE)+'&_='+Date.now();
-  try{
-    const data=await fetchCentralJson(url,3);
-    if(!data || data.success===false)throw new Error(data&&data.error||'Server rejected the change');
-    if(String(data.testId||adminTestId)!==String(adminTestId))throw new Error('TEST_ID mismatch');
-    if(msg)msg.textContent=locked?'EXAM LOCKED — status saved on server.':'EXAM UNLOCKED — status saved on server.';
-    if(String(adminTestId)===String(TEST_ID)) setLockUI(!!locked,data.notice||DEFAULT_LOCK_NOTICE);
-    renderCentralAdmin();
-  }catch(e){
-    if(msg)msg.textContent='CHANGE FAILED: '+(e.message||'Server unavailable');
-    alert('LOCK/UNLOCK পরিবর্তন সার্ভারে সংরক্ষণ হয়নি। আবার চেষ্টা করুন।');
+
+  // IMPORTANT: Lock/Unlock always controls THIS HTML's TEST_ID.
+  // It must never depend on whichever test happens to be selected in the admin list.
+  const targetTestId=TEST_ID;
+  const desired=!!locked;
+  const actions=desired?['lock','setExamLock']:['unlock','setExamLock'];
+  let lastError=null;
+  let changed=null;
+
+  // Make sure the test exists in the central registry before changing its lock state.
+  try{ await registerCurrentTest(); }catch(e){ lastError=e; }
+
+  for(const action of actions){
+    try{
+      let url=CENTRAL_SCOREBOARD_URL+
+        '?action='+action+
+        '&testId='+encodeURIComponent(targetTestId)+
+        '&password='+encodeURIComponent(adminPasswordSession)+
+        '&locked='+encodeURIComponent(String(desired))+
+        '&_='+Date.now();
+      const data=await fetchCentralJson(url,3);
+      if(data && data.ok===true && String(data.testId||targetTestId)===String(targetTestId)){
+        changed=data;
+        break;
+      }
+      lastError=new Error(data&&data.error ? data.error : 'Server rejected the lock change.');
+    }catch(e){ lastError=e; }
   }
+
+  // Never show success until the server confirms the requested state.
+  if(changed){
+    try{
+      const verifyActions=['checkTest','examLock'];
+      let verified=false;
+      for(const a of verifyActions){
+        try{
+          const v=await fetchCentralJson(CENTRAL_SCOREBOARD_URL+
+            '?action='+a+'&testId='+encodeURIComponent(targetTestId)+'&_='+Date.now(),3);
+          if(v && v.ok===true && String(v.testId||targetTestId)===String(targetTestId)){
+            if(Boolean(v.locked)===desired){ verified=true; break; }
+            lastError=new Error('Server returned the old lock status.');
+          }
+        }catch(e){ lastError=e; }
+      }
+      if(verified){
+        if(msg)msg.textContent=desired
+          ?'🔒 EXAM LOCKED — SERVER STATUS VERIFIED.'
+          :'🔓 EXAM UNLOCKED — SERVER STATUS VERIFIED.';
+        if($('lockStatusBadge')){
+          const badge=$('lockStatusBadge');
+          badge.className='lockBadge '+(desired?'locked':'unlocked');
+          badge.textContent=desired?'🔒 LOCKED':'🔓 UNLOCKED';
+        }
+        setLockUI(desired,DEFAULT_LOCK_NOTICE);
+        // Refresh the admin list without changing the lock target.
+        renderCentralAdmin();
+        return;
+      }
+    }catch(e){ lastError=e; }
+  }
+
+  const reason=lastError && lastError.message ? lastError.message : 'Central server unavailable.';
+  if(msg)msg.textContent='CHANGE FAILED: '+reason;
+  alert('LOCK/UNLOCK করা যায়নি।\n\nServer-এর নিশ্চিত উত্তর পাওয়া যায়নি।\n\nকারণ: '+reason);
 }
 
 function adminLogin(){
@@ -923,7 +1001,7 @@ function renderCentralAdmin(){
         }];
       }
       if(!adminTests.some(t=>String(t.testId)===String(adminTestId))){
-        adminTestId=adminTests[0].testId;
+        adminTestId=TEST_ID;
       }
       renderCentralAdminShell();
       loadCentralAdminResults();
@@ -967,10 +1045,12 @@ function renderCentralAdminShell(){
 
   const t=adminTests.find(x=>String(x.testId)===String(adminTestId));
   if(t){
+    const badge=$("lockStatusBadge");
+    if(badge){badge.className="lockBadge "+(t.locked?"locked":"unlocked");badge.textContent=t.locked?"🔒 LOCKED":"🔓 UNLOCKED";}
     $("centralTestInfo").textContent=
       "Test: "+(t.testName||t.testId)+
       " | TEST_ID: "+t.testId+
-      " | Questions: "+(t.questionCount||"")+
+      " | Questions: "+(t.questionCount||t.totalQuestions||"")+
       (Number(t.durationSeconds)>0 ? " | Duration: "+formatTime(Number(t.durationSeconds)) : "");
   }
 }
@@ -984,7 +1064,7 @@ function loadCentralAdminResults(){
     $("centralTestInfo").textContent=
       "Test: "+(t.testName||t.testId)+
       " | TEST_ID: "+t.testId+
-      " | Questions: "+(t.questionCount||"")+
+      " | Questions: "+(t.questionCount||t.totalQuestions||"")+
       (Number(t.durationSeconds)>0 ? " | Duration: "+formatTime(Number(t.durationSeconds)) : "");
   }
 
@@ -994,7 +1074,8 @@ function loadCentralAdminResults(){
 
   fetchCentralJson(url,3)
     .then(data=>{
-      if(!data.success)throw new Error(data.error||"Unable to load results.");
+      if(data && (data.ok===false || data.success===false))throw new Error(data.error||"Unable to load results.");
+      if(!data || !Array.isArray(data.results))throw new Error("Central server returned no results data.");
       renderCentralResults(data.results||[]);
       saveCentralAdminCache(adminTestId,data.results||[]);
     })
@@ -1046,7 +1127,7 @@ function renderCentralResults(results){
           ${results.map(r=>`
             <tr>
               <td>${esc(r.candidateName||"")}</td>
-              <td>${esc(r.scored==null?"":r.scored)}</td>
+              <td>${esc(r.score==null?(r.scored==null?"":r.scored):r.score)}</td>
               <td>${formatCentralTimeUsed(r.timeUsed,r.startExam,r.date,r.durationSeconds)}</td>
               <td>${esc(r.startExam||"")}</td>
               <td>${esc(String(r.percentage==null?"":r.percentage))}%</td>
