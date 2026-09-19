@@ -344,7 +344,13 @@ async function loadConfiguredExamDuration(){
 
 function submitToCentralScoreboard(r){
   const status=$("centralStatus");
+
+  // IMPORTANT:
+  // Send the result as application/x-www-form-urlencoded so Google Apps Script
+  // receives every field through e.parameter in doPost(e).
+  // This is more reliable for Apps Script Web Apps than sending JSON/no-cors.
   const payload={
+    action:"submit",
     token:CENTRAL_API_TOKEN,
     testId:TEST_ID,
     candidateName:String(r.candidate||"").trim(),
@@ -352,61 +358,70 @@ function submitToCentralScoreboard(r){
     score:Number(r.score)||0,
     percentage:Number(r.percentage)||0,
     timeUsed:Number(r.timeUsed)||0,
+    timeUsedSeconds:Number(r.timeUsed)||0,
     correct:Number(r.correct)||0,
     incorrect:Number(r.incorrect)||0,
     attempted:Number(r.attempted)||0,
     unanswered:Number(r.unanswered)||0,
+    totalQuestions:Number(QUESTIONS.length)||0,
     durationSeconds:Number(r.durationSeconds)||Number(DURATION)||0,
     submissionId:String(r.id||""),
     startExam:r.startExam||examStartAt||"",
-    date:r.completedAt,
-    startExam:r.startExam || r.startAt || ""
+    startAt:r.startExam||r.startAt||"",
+    date:r.completedAt||new Date().toISOString(),
+    completedAt:r.completedAt||new Date().toISOString()
   };
-  const body=JSON.stringify(payload);
+
+  const form=new URLSearchParams();
+  Object.entries(payload).forEach(([k,v])=>form.append(k,String(v)));
+  const body=form.toString();
+
   if(status){
     status.textContent="CENTRAL SCOREBOARD: SENDING RESULT…";
     status.style.color="var(--green)";
   }
 
-  let sent=false;
+  // First try Beacon. It survives page/result transitions and is ideal for
+  // the final exam submission.
   try{
     if(navigator.sendBeacon){
-      sent=navigator.sendBeacon(
+      const queued=navigator.sendBeacon(
         CENTRAL_SCOREBOARD_URL,
-        new Blob([body],{type:"text/plain;charset=UTF-8"})
+        new Blob([body],{type:"application/x-www-form-urlencoded;charset=UTF-8"})
       );
+      if(queued){
+        if(status){
+          status.textContent="CENTRAL SCOREBOARD: RESULT SENT";
+          status.style.color="var(--green)";
+        }
+        return Promise.resolve(true);
+      }
     }
-  }catch(e){ sent=false; }
+  }catch(e){}
 
-  if(sent){
-    if(status){
-      status.textContent="CENTRAL SCOREBOARD: SUBMISSION QUEUED";
-      status.style.color="var(--green)";
-    }
-    return Promise.resolve();
-  }
-
+  // Fallback: normal POST. Google Apps Script receives the fields in e.parameter.
   return fetch(CENTRAL_SCOREBOARD_URL,{
     method:"POST",
     mode:"no-cors",
-    redirect:"follow",
     credentials:"omit",
-    headers:{"Content-Type":"text/plain;charset=UTF-8"},
+    headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
     body:body,
     keepalive:true
   }).then(()=>{
     if(status){
-      status.textContent="CENTRAL SCOREBOARD: SUBMISSION SENT";
+      status.textContent="CENTRAL SCOREBOARD: RESULT SENT";
       status.style.color="var(--green)";
     }
-  }).catch(()=>{
+    return true;
+  }).catch(err=>{
     if(status){
       status.textContent="CENTRAL SCOREBOARD: CONNECTION FAILED";
       status.style.color="var(--red)";
     }
+    console.error("Central scoreboard submission failed:",err);
+    return false;
   });
 }
-
 let audioCtx=null;
 function ensureAudio(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;if(!audioCtx)audioCtx=new C();if(audioCtx.state==="suspended")audioCtx.resume();return audioCtx}catch(e){return null}}
 
