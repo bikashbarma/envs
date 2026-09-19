@@ -309,8 +309,8 @@ let DURATION=30*60;
 const DEFAULT_DURATION_SECONDS=30*60;
 const ADMIN_PASSWORD="Bikash@420";
 const RESULTS_KEY="health_40_mock_v1";
-const CENTRAL_SCOREBOARD_URL="https://script.google.com/macros/s/AKfycbxKW7f-WZhPXnAqp_mggOw-z0NjmbSw268p2oBp-NnSaK0da5x7jTWvz1eImbF3LTlW/exec";
-const CENTRAL_API_TOKEN="Bikash@420";
+const CENTRAL_SCOREBOARD_URL="https://script.google.com/macros/s/AKfycbxmbDKNveQK46BYoCDN0Yu47SX_-jg0-bmXFsCJjwIUswyUvnnamuow93sfHIxJqz4yrQ/exec";
+const CENTRAL_API_TOKEN="CTET_SCOREBOARD_2026_BIKAS_420";
 const TEST_ID="HEALTH-40";
 const CENTRAL_ADMIN_CACHE_KEY="central_admin_cache_v1_"+TEST_ID;
 
@@ -352,7 +352,6 @@ function submitToCentralScoreboard(r){
     score:Number(r.score)||0,
     percentage:Number(r.percentage)||0,
     timeUsed:Number(r.timeUsed)||0,
-    timeUsedSeconds:Number(r.timeUsed)||0,
     correct:Number(r.correct)||0,
     incorrect:Number(r.incorrect)||0,
     attempted:Number(r.attempted)||0,
@@ -1098,7 +1097,7 @@ function loadCentralAdminResults(){
 
 function GLOBAL_CENTRAL_ADMIN_URL(testId,password){
   return CENTRAL_SCOREBOARD_URL+
-    "?action=results&testId="+encodeURIComponent(testId)+
+    "?action=admin&testId="+encodeURIComponent(testId)+
     "&password="+encodeURIComponent(password);
 }
 
@@ -1129,8 +1128,8 @@ function renderCentralResults(results){
             <tr>
               <td>${esc(r.candidateName||"")}</td>
               <td>${esc(r.score==null?(r.scored==null?"":r.scored):r.score)}</td>
-              <td>${formatCentralTimeUsed(r.timeUsed,r.examStart||r.startExam,r.date,r.durationSeconds)}</td>
-              <td>${esc(r.examStart||r.startExam||"")}</td>
+              <td>${formatCentralTimeUsed(r.timeUsed,r.startExam,r.date,r.durationSeconds)}</td>
+              <td>${esc(r.startExam||"")}</td>
               <td>${esc(String(r.percentage==null?"":r.percentage))}%</td>
               <td>${esc(r.date||"")}</td>
             </tr>
